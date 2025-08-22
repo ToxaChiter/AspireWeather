@@ -1,23 +1,50 @@
+using System.Text;
+using System.Text.Json;
+using AspireWeather.Shared;
+using RabbitMQ.Client;
+using RabbitMQ.Client.Events;
+
 namespace AspireWeather.AuditService;
 
-public class Worker : BackgroundService
+public class Worker(ILogger<Worker> logger, IConnection rabbitConnection) : BackgroundService
 {
-    private readonly ILogger<Worker> _logger;
-
-    public Worker(ILogger<Worker> logger)
+    protected override Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        _logger = logger;
-    }
-
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
-    {
-        while (!stoppingToken.IsCancellationRequested)
+        try
         {
-            if (_logger.IsEnabled(LogLevel.Information))
+            const string queueName = "forecast-requests";
+            var channel = rabbitConnection.CreateModel();
+
+            channel.QueueDeclare(queue: queueName, durable: false, exclusive: false, autoDelete: false, arguments: null);
+
+            var consumer = new EventingBasicConsumer(channel);
+            consumer.Received += (model, ea) =>
             {
-                _logger.LogInformation("Worker running at: {time}", DateTimeOffset.Now);
-            }
-            await Task.Delay(1000, stoppingToken);
+                var body = ea.Body.ToArray();
+                try
+                {
+                    var message = JsonSerializer.Deserialize<ForecastRequestedEvent>(body);
+                    if (message != null)
+                    {
+                        logger.LogInformation(
+                            ">>> [AUDIT] Получено событие: Пользователь {UserId} запросил прогноз для '{Location}' в {Timestamp}",
+                            message.UserId, message.Location, message.Timestamp);
+                    }
+                }
+                catch (JsonException ex)
+                {
+                    logger.LogError(ex, "Ошибка десериализации сообщения из очереди: {Message}", Encoding.UTF8.GetString(body));
+                }
+            };
+
+            channel.BasicConsume(queue: queueName, autoAck: true, consumer: consumer);
+            logger.LogInformation("Слушатель очереди {QueueName} запущен", queueName);
         }
+        catch (Exception ex)
+        {
+            logger.LogCritical(ex, "Не удалось запустить слушатель RabbitMQ. Сервис не будет обрабатывать сообщения.");
+        }
+
+        return Task.CompletedTask;
     }
 }

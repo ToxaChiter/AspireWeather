@@ -1,7 +1,148 @@
 ﻿@page "/"
+@rendermode InteractiveServer
 
-<PageTitle>Home</PageTitle>
+@inject UserApiClient UserApiClient
+@inject WeatherApiClient WeatherApiClient
 
-<h1>Hello, world!</h1>
+@using AspireWeather.Shared
+@using System.Diagnostics
+@using AspireWeather.WebApp.ApiClient
 
-Welcome to your new app.
+
+<PageTitle>Aspire Weather</PageTitle>
+
+<h1>Персональный прогноз погоды</h1>
+
+<p>Эта демонстрация показывает взаимодействие нескольких микросервисов, оркестрированных с помощью .NET Aspire.</p>
+
+<div class="card my-4">
+    <div class="card-body">
+        <h5 class="card-title">1. Выберите пользователя</h5>
+        @if (users.Any())
+        {
+            <select class="form-select" @bind="selectedUserId" disabled="@isLoading">
+                @foreach (var user in users)
+                {
+                    <option value="@user.Id">@user.Name (@user.Location)</option>
+                }
+            </select>
+        }
+        else
+        {
+            <p>Загрузка пользователей...</p>
+        }
+
+        <h5 class="card-title mt-3">2. Запросите прогноз</h5>
+        <button class="btn btn-primary" @onclick="LoadForecast" disabled="@(isLoading || !users.Any())">
+            @if (isLoading)
+            {
+                <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                <span class="visually-hidden">Loading...</span>
+            }
+            else
+            {
+                <span>Получить прогноз</span>
+            }
+        </button>
+    </div>
+</div>
+
+@if (error is not null)
+{
+    <div class="alert alert-danger" role="alert">
+        @error
+    </div>
+}
+
+
+@if (error is not null)
+{
+    <div class="alert alert-danger" role="alert">
+        @error
+    </div>
+}
+
+@if (forecasts is not null)
+{
+    <div class="alert alert-info">
+        Прогноз получен за <strong>@loadTime.TotalMilliseconds.ToString("F0") мс</strong>.
+        Попробуйте нажать еще раз в течение 10 секунд, чтобы получить ответ из кэша (он будет гораздо быстрее).
+    </div>
+
+    <h3>Прогноз для @forecasts.First().PreparedFor в локации @forecasts.First().Location</h3>
+
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Дата</th>
+                <th>Темп. (C)</th>
+                <th>Описание</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var forecast in forecasts)
+            {
+                <tr>
+                    <td>@forecast.Date.ToShortDateString()</td>
+                    <td>@forecast.TemperatureC</td>
+                    <td>@forecast.Summary</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+
+@code {
+    private UserDto[] users = [];
+    private int selectedUserId = 1;
+    private WeatherForecast[]? forecasts;
+    private string? error;
+    private bool isLoading;
+    private TimeSpan loadTime;
+
+    // Добавляем вычисляемое свойство для отладки
+    private bool isLoadingOrUserListIsEmpty => isLoading || !users.Any();
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            users = await UserApiClient.GetUsersAsync();
+            if (users.Any())
+            {
+                selectedUserId = users.First().Id;
+            }
+        }
+        catch (Exception ex)
+        {
+            error = $"Не удалось загрузить пользователей: {ex.Message}";
+        }
+
+        // Явно сообщаем Blazor, что нужно обновить UI после всех манипуляций
+        StateHasChanged();
+    }
+
+    private async Task LoadForecast()
+    {
+        isLoading = true;
+        error = null;
+        forecasts = null;
+        var stopwatch = Stopwatch.StartNew();
+
+        try
+        {
+            forecasts = await WeatherApiClient.GetWeatherForecastAsync(selectedUserId);
+        }
+        catch (Exception ex)
+        {
+            error = $"Ошибка при получении прогноза: {ex.Message}";
+        }
+        finally
+        {
+            stopwatch.Stop();
+            loadTime = stopwatch.Elapsed;
+            isLoading = false;
+        }
+    }
+}

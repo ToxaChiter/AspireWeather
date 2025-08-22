@@ -1,10 +1,17 @@
+using AspireWeather.WebApp.ApiClient;
 using AspireWeather.WebApp.Components;
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.AddServiceDefaults();
+
 // Add services to the container.
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
+
+// Регистрируем HTTP клиенты для наших API
+builder.Services.AddHttpClient<UserApiClient>(client => client.BaseAddress = new("http://userapi"));
+builder.Services.AddHttpClient<WeatherApiClient>(client => client.BaseAddress = new("http://weatherapi"));
 
 var app = builder.Build();
 
@@ -24,5 +31,7 @@ app.UseAntiforgery();
 app.MapStaticAssets();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
+
+app.MapDefaultEndpoints();
 
 app.Run();

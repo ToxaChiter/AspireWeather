@@ -1,41 +1,60 @@
+using AspireWeather.Shared;
+using AspireWeather.UserApi.Data;
+using Microsoft.EntityFrameworkCore;
+
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
-builder.Services.AddOpenApi();
+builder.AddServiceDefaults();
+builder.AddNpgsqlDbContext<UserDbContext>("userdb");
+
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
+// Автоматически применяем миграции и сидируем данные при старте (только для демо!)
+await using (var scope = app.Services.CreateAsyncScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<UserDbContext>();
+    await db.Database.MigrateAsync();
+
+    // Добавляем тестовых пользователей, если их нет
+    if (!await db.Users.AnyAsync())
+    {
+        db.Users.AddRange(
+            new User { Id = 1, Name = "Анна", Location = "Москва" },
+            new User { Id = 2, Name = "Борис", Location = "Санкт-Петербург" },
+            new User { Id = 3, Name = "Виктория", Location = "Новосибирск" }
+        );
+        await db.SaveChangesAsync();
+    }
+}
+
+
 if (app.Environment.IsDevelopment())
 {
-    app.MapOpenApi();
+    app.UseSwagger();
+    app.UseSwaggerUI();
 }
 
 app.UseHttpsRedirection();
 
-var summaries = new[]
+app.MapGet("/users", async (UserDbContext db) =>
 {
-    "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
-};
+    var users = await db.Users
+        .Select(u => new UserDto(u.Id, u.Name, u.Location))
+        .ToListAsync();
+    return Results.Ok(users);
+});
 
-app.MapGet("/weatherforecast", () =>
+app.MapGet("/users/{id}", async (int id, UserDbContext db) =>
 {
-    var forecast =  Enumerable.Range(1, 5).Select(index =>
-        new WeatherForecast
-        (
-            DateOnly.FromDateTime(DateTime.Now.AddDays(index)),
-            Random.Shared.Next(-20, 55),
-            summaries[Random.Shared.Next(summaries.Length)]
-        ))
-        .ToArray();
-    return forecast;
-})
-.WithName("GetWeatherForecast");
+    var user = await db.Users.FindAsync(id);
+    return user is not null
+        ? Results.Ok(new UserDto(user.Id, user.Name, user.Location))
+        : Results.NotFound();
+});
+
+app.MapDefaultEndpoints();
 
 app.Run();
-
-record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
-{
-    public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
-}
