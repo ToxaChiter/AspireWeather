@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk.Worker">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UserSecretsId>dotnet-AspireWeather.AuditService-328d514f-cde4-4e29-99c5-b0342f886d6c</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Aspire.RabbitMQ.Client" Version="9.4.1" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="9.0.4" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\AspireWeather.ServiceDefaults\AspireWeather.ServiceDefaults.csproj" />
+    <ProjectReference Include="..\AspireWeather.Shared\AspireWeather.Shared.csproj" />
+  </ItemGroup>
+</Project>

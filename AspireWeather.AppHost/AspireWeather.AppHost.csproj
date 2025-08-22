@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsAspireHost>true</IsAspireHost>
+    <UserSecretsId>70e36ab5-c2fb-4bf9-83f2-565370e48e5d</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Aspire.Hosting.AppHost" Version="8.2.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\AspireWeather.UserApi\AspireWeather.UserApi.csproj" />
+    <ProjectReference Include="..\AspireWeather.WeatherApi\AspireWeather.WeatherApi.csproj" />
+    <ProjectReference Include="..\AspireWeather.AuditService\AspireWeather.AuditService.csproj" />
+    <ProjectReference Include="..\AspireWeather.WebApp\AspireWeather.WebApp.csproj" />
+  </ItemGroup>
+
+</Project>
