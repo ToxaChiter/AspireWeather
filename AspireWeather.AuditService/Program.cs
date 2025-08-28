@@ -1,5 +1,7 @@
 using AspireWeather.AuditService;
 
+Console.OutputEncoding = System.Text.Encoding.UTF8;
+
 var builder = Host.CreateApplicationBuilder(args);
 
 builder.AddServiceDefaults();
